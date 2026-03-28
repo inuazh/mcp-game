@@ -37,10 +37,119 @@ Warning: MAJOR MARKET CORRECTION IMMINENT
 ========================================
 `
 
-// TODO: Create an MCP server with resources capability
+// Create an MCP server with resources capability
+const server = new Server(
+  {
+    name: 'resource-server',
+    version: '1.0.0',
+  },
+  {
+    capabilities: {
+      resources: {},
+    },
+  }
+)
 
-// TODO: Implement handler for resources/list requests
+// Implement handler for resources/list requests
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  return {
+    resources: [
+      {
+        uri: 'news://finance/recent',
+        name: 'Recent Financial News',
+      },
+      {
+        uri: 'cassandra://prediction/market',
+        name: 'Market Prediction',
+      },
+    ],
+    resourceTemplates: [
+      {
+        uriTemplate: 'market://historical/{symbol}',
+        name: 'Historical Market Data',
+      },
+      {
+        uriTemplate: 'market://current/{symbol}',
+        name: 'Current Market Data',
+      },
+    ],
+  }
+})
 
-// TODO: Implement handler for resources/read requests
+// Implement handler for resources/read requests
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const uri = request.params.uri
 
-// TODO: Initialize and start the server
+  // news://finance/recent
+  if (uri === 'news://finance/recent') {
+    return {
+      contents: [
+        {
+          uri,
+          text: recentNews.trim(),
+          mimeType: 'text/plain',
+        },
+      ],
+    }
+  }
+
+  // cassandra://prediction/market
+  if (uri === 'cassandra://prediction/market') {
+    return {
+      contents: [
+        {
+          uri,
+          text: marketPrediction.trim(),
+          mimeType: 'text/plain',
+        },
+      ],
+    }
+  }
+
+  // market://historical/{symbol}
+  const historicalMatch = uri.match(/^market:\/\/historical\/(.+)$/)
+  if (historicalMatch) {
+    const symbol = historicalMatch[1]
+    const data = marketData[symbol]
+    if (!data) throw new Error(`Unknown symbol: ${symbol}`)
+    return {
+      contents: [
+        {
+          uri,
+          text: data.historical.trim(),
+          mimeType: 'text/plain',
+        },
+      ],
+    }
+  }
+
+  // market://current/{symbol}
+  const currentMatch = uri.match(/^market:\/\/current\/(.+)$/)
+  if (currentMatch) {
+    const symbol = currentMatch[1]
+    const data = marketData[symbol]
+    if (!data) throw new Error(`Unknown symbol: ${symbol}`)
+    return {
+      contents: [
+        {
+          uri,
+          text: data.current.trim(),
+          mimeType: 'text/plain',
+        },
+      ],
+    }
+  }
+
+  throw new Error(`Unknown resource: ${uri}`)
+})
+
+// Initialize and start the server
+async function main() {
+  const transport = new StdioServerTransport()
+  await server.connect(transport)
+}
+
+main().catch((err) => {
+  console.error('[SERVER] Error:', err)
+  process.exit(1)
+})
